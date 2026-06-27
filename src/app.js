@@ -8,10 +8,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Ruta prueba
 app.get('/', (req, res) => {
-    res.json({ mensaje: 'API de tareas funcionando' });
+    res.json({ mensaje: 'API de tareas funcionando 🚀' });
 });
 
+// Rutas
 app.use('/api/tareas', tareasRoutes);
 
 module.exports = app;
