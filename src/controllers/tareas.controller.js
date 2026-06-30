@@ -36,15 +36,21 @@ const getTareaById = async (req, res) => {
 // CREATE
 const createTarea = async (req, res) => {
     try {
-        const { titulo, descripcion, estado, usuario_id, categoria_id } = req.body;
+        const { titulo, descripcion, estado, usuario_id, categoria_id, fecha_limite } = req.body;
+
+        // Si no envían usuario_id explícito, usar el del token autenticado
+        const usuarioFinal = usuario_id || req.usuario?.id;
+
+        if (!titulo || !usuarioFinal || !categoria_id)
+            return res.status(400).json({ mensaje: 'titulo, categoria_id y usuario son requeridos' });
 
         const [result] = await pool.query(
-            `INSERT INTO tareas (titulo, descripcion, estado, usuario_id, categoria_id)
-             VALUES (?, ?, ?, ?, ?)`,
-            [titulo, descripcion, estado, usuario_id, categoria_id]
+            `INSERT INTO tareas (titulo, descripcion, estado, usuario_id, categoria_id, fecha_limite)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [titulo, descripcion, estado || 'Pendiente', usuarioFinal, categoria_id, fecha_limite || null]
         );
 
-        res.json({ mensaje: 'Tarea creada', id: result.insertId });
+        res.status(201).json({ mensaje: 'Tarea creada', id: result.insertId });
     } catch (error) {
         res.status(500).json({ mensaje: error.message });
     }
@@ -53,12 +59,15 @@ const createTarea = async (req, res) => {
 // UPDATE
 const updateTarea = async (req, res) => {
     try {
-        const { titulo, descripcion, estado } = req.body;
+        const { titulo, descripcion, estado, fecha_limite, categoria_id } = req.body;
 
         const [result] = await pool.query(
-            `UPDATE tareas SET titulo=?, descripcion=?, estado=? WHERE id=?`,
-            [titulo, descripcion, estado, req.params.id]
+            `UPDATE tareas SET titulo=?, descripcion=?, estado=?, fecha_limite=?, categoria_id=? WHERE id=?`,
+            [titulo, descripcion, estado, fecha_limite || null, categoria_id, req.params.id]
         );
+
+        if (result.affectedRows === 0)
+            return res.status(404).json({ mensaje: 'Tarea no encontrada' });
 
         res.json({ mensaje: 'Tarea actualizada' });
     } catch (error) {
@@ -69,10 +78,13 @@ const updateTarea = async (req, res) => {
 // DELETE
 const deleteTarea = async (req, res) => {
     try {
-        await pool.query(
+        const [result] = await pool.query(
             'DELETE FROM tareas WHERE id=?',
             [req.params.id]
         );
+
+        if (result.affectedRows === 0)
+            return res.status(404).json({ mensaje: 'Tarea no encontrada' });
 
         res.json({ mensaje: 'Tarea eliminada' });
     } catch (error) {
